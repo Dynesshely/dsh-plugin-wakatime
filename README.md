@@ -11,93 +11,114 @@
 
 # dsh-plugin-wakatime
 
-一个 [DeepSeek Harness](https://github.com/Dynesshely)（DSH）的 Host 侧插件：把你在 DSH 里**和 AI 一起写代码**的时长，按 WakaTime 官方客户端的做法，以 `category: "ai coding"` 的 heartbeat 上报到 WakaTime API v1，从而计入 **AI Coding** 统计。
+A [DeepSeek Harness](https://github.com/Dynesshely) (DSH) Host plugin that reports the time you spend **coding with AI** inside DSH to WakaTime, as `category: "ai coding"` heartbeats, so it shows up in your **AI Coding** stats next to everything else you track.
 
-它不伪造「手写代码」的逐文件发键记录，只回答一个问题：这段时间你是不是在跟 AI 做这个项目。装上之后在后台计时，没有面板、没有命令，诊断靠日志。
+It does not fake per-file keystroke heartbeats. It answers one question — was this stretch of time spent working on this project with an AI pair? — and it does so in the background, without blocking the host. Since v0.2 it also ships a **Usage** page inside DSH.
 
-## 特性
+## Features
 
-- **按项目计时**：`entity` 取会话工作目录、`project` 取目录名，WakaTime 里能按项目看到 AI 时间。
-- **带上 AI 维度**：心跳携带会话 id、输入/输出 token 增量、你键入的字符数，供 WakaTime 的 AI 统计使用。
-- **跟随 DSH 的真实活动**：用户消息、模型回复、工具调用、轮次起止都会触发；长回合有保活，空闲超时后停止，不会「开着去吃饭」白算。
-- **失败不丢数据**：429/5xx/断网先落本地队列（原子写、上限 500 条）再按退避补发；401 直接停报，不刷请求。
-- **不干扰宿主**：没有 `api_key` 时只记一条告警并保持 inert，不影响 DSH 启动。
+- **Project-aware** — `entity` is the session's working directory, `project` is its folder name, so AI time is broken down per project in WakaTime.
+- **AI-shaped heartbeats** — every beat carries the DSH session id, input/output token deltas, and how many characters you typed.
+- **Follows real DSH activity** — user messages, assistant replies, tool calls, and turn boundaries all count; a 15 s keepalive covers long turns, and an idle timeout stops the clock when you walk away.
+- **Nothing lost offline** — 429/5xx/network failures land in a local queue (atomic writes, 500 beats max) and are replayed with backoff; a 401 stops sending instead of hammering the API.
+- **Built-in Usage page** — a sidebar entry with today / this week / all-time time, a 7-day chart, top projects, token and keystroke counts, plus the WakaTime-side view.
+- **Harmless without config** — no `api_key` means one warning in the log and an inert plugin; DSH starts normally.
 
-## 安装
+## Install
 
-`install_bundle` 对本地目录是**软链安装**，不会代装插件自己的依赖，所以先装依赖：
+The bundle needs its own dependency first: `install_bundle` symlinks a local directory and does **not** install what the bundle depends on.
 
 ```bash
 git clone git@github.com:Dynesshely/dsh-plugin-wakatime.git
 cd dsh-plugin-wakatime
-pnpm install        # 或 npm install
+pnpm install          # or npm install
 ```
 
-然后在 DSH 的 Plugin Manager 里把本仓库根目录的绝对路径作为 bundle 目标安装：
+Then install the repository root as a bundle from DSH's Plugin Manager:
 
 ```text
 plugin_manager → install_bundle → D:\Projects\Dynesshely\dsh-plugin-wakatime
 ```
 
-安装或升级后**重启 DSH**（Host 代码在进程里，刷新页面不生效）。卸载用 `remove_bundle`，包名 `dsh-plugin-wakatime`。
+**Restart DSH** after installing or upgrading — the Host code lives in the server process, so refreshing the page is not enough. Remove it with `remove_bundle` (package name `dsh-plugin-wakatime`).
 
-前提：`~/.wakatime.cfg` 的 `[settings]` 里已有 `api_key`（和其他 WakaTime 客户端共用同一个文件）；文件里的 `proxy`、`hostname`、`debug` 会被沿用。
+Prerequisite: an `api_key` under `[settings]` in `~/.wakatime.cfg` — the same file your other WakaTime clients already use. Its `proxy`, `hostname`, and `debug` values are reused.
 
-## 配置
+## Configuration
 
-配置写在插件行的 `config`（或 Settings 的插件表单）里，优先级：插件 `config` > `~/.wakatime.cfg` > 内置默认值。
+Config lives on the plugin's row (`config` in `cordis.patch.yml`, or the form in Settings). Precedence: plugin `config` > `~/.wakatime.cfg` > built-in defaults.
 
-| 键 | 默认 | 说明 |
+| Key | Default | Purpose |
 |---|---|---|
-| `enabled` | `true` | 总开关 |
-| `minIntervalSeconds` | `120` | 两次心跳的最小间隔，全局生效 |
-| `idleTimeoutMinutes` | `15` | 空闲超过该时长即结束当前一段计时 |
-| `entityType` | `'file'` | `file` 用项目目录，`app` 用应用名 `DeepSeek Harness` |
-| `includeSubagentSessions` | `false` | 子代理会话是否单独计时（默认否，避免同一段墙钟时间记两遍） |
-| `debug` | `false` | 写更详细的诊断日志 |
+| `enabled` | `true` | Master switch. |
+| `minIntervalSeconds` | `120` | Minimum gap between heartbeats, all sessions combined. |
+| `idleTimeoutMinutes` | `15` | Gap that ends the current timing stretch. |
+| `entityType` | `'file'` | `file` reports the project path; `app` reports `DeepSeek Harness`. |
+| `includeSubagentSessions` | `false` | Count subagent sessions separately (off: the same wall-clock time is not counted twice). |
+| `category` | `'ai coding'` | WakaTime activity category. |
+| `apiKey` | empty | Overrides the `api_key` from `~/.wakatime.cfg`. |
+| `debug` | `false` | Verbose diagnostics in the log file. |
 
-字符串型覆盖项（`apiKey`、`apiUrl`、`proxy`、`hostname`、`language`、`userAgent`）留空表示回退，不是「设成空字符串」。另外还有 `category`、`projectFromCwd` 两项，完整 14 键与语义见 [docs/design.md](docs/design.md)。
+An empty string means "fall back", not "set it empty". The remaining keys — `apiUrl`, `proxy`, `hostname`, `language`, `userAgent`, `projectFromCwd` — and the exact semantics of all of them are in [docs/design.md](docs/design.md).
 
-## 工作方式
+## Usage
+
+v0.2 adds a **Usage** page: a sidebar entry sitting next to Plugins, Automation tasks and Context insights. It is fed by the Host route `GET /wakatime/usage.json` (`Cache-Control: no-store`), so everything shown is real data from this machine.
+
+| Block | Shows |
+|---|---|
+| Local time | today (large), this week, all-time |
+| Today's volume | input / output tokens, characters typed, sessions, heartbeats |
+| Last 7 days | inline SVG bar chart, one bar per day |
+| Projects | top 5 by tracked time |
+| WakaTime | whether `api_key` is configured, hostname, today's remote AI Coding time, pending queue size, last send, last error |
+
+Page copy is bilingual and follows DSH's language setting (`en` / `zh`), and the page is drawn with the host's theme variables, so it matches light and dark. The remote figure is derived from your heartbeats (`GET /users/current/heartbeats?date=…`, AI Coding categories only, 60 s cache); if that one request fails, only that block reports an error and the local stats keep working. A refresh button re-fetches the JSON.
+
+## How it works
 
 ```text
-session/event  →  累计活动与 token/字符增量  →  全局节流（≥ minIntervalSeconds）
-                                                     │
-                                    ┌────────────────┴────────────────┐
-                               成功 → WakaTime          失败 → 本地队列 → 退避补发
+session/event → accumulate activity + token/char deltas → throttle (≥ minIntervalSeconds)
+                                    ├── ok   → WakaTime: single beat, or .bulk (≤ 25 per batch)
+                                    └── fail → local queue → backoff replay
 ```
 
-- 触发事件：`user/message`、`assistant/message`（含 `usage`）、`tool/call`、`tool/result`、`turn/start`、`turn/end`；`turn` 进行中由 15s tick 保活。
-- 发送：单条走 `/users/current/heartbeats`，多条走 `.bulk`（每批 ≤25）；认证为 `Authorization: Basic base64(api_key)`。
-- 诊断：`<DSH_HOME>/cache/wakatime-dsh/wakatime.log`（没有 `DSH_HOME` 时在 `~/.dsh/cache/`），离线队列与状态也在同目录。
+- Triggers: `user/message`, `assistant/message` (with `usage`), `tool/call`, `tool/result`, `turn/start`, `turn/end`; running turns stay alive thanks to a 15 s tick.
+- Auth: `Authorization: Basic base64(api_key)` against the WakaTime API v1. Each beat also feeds a local per-day store (`usage.json`, 30 days) that backs the Usage page.
+- Diagnostics: `<DSH_HOME>/cache/wakatime-dsh/wakatime.log` (or `~/.dsh/cache/…` when `DSH_HOME` is unset). The offline queue and state live in the same directory.
 
-## 隐私
+## Privacy
 
-上报内容只有：项目工作目录路径、项目名、DSH 会话 id、输入/输出 token 数、键入字符数、时间戳，以及配置了的 `language` 与主机名。
+Sent to WakaTime: project working-directory path, project name, DSH session id, input/output token counts, characters typed, timestamps, plus `language` and `hostname` when configured.
 
-**不上报**：代码内容、提示词正文、模型回复正文、文件内容、终端输出。插件处理的是事件元数据，不是文本本身。
+**Never sent**: code, prompt text, model output, file contents, terminal output. The plugin works on event metadata, never on the text itself. The usage store stays on your disk.
 
-## 开发
+## Development
 
-无构建步骤，纯 ESM，`lib/*.js` 可以脱离 DSH 运行时单独测试：
+No build step, plain ESM. `lib/*.js` is testable without DSH:
 
 ```bash
-node --test        # 67 个用例：配置解析、心跳构造、HTTP 客户端、离线队列、追踪器、入口装配
+pnpm install
+node --test
 ```
 
 ```text
-index.js            Host 入口：Config + apply(ctx, config)
-lib/tracker.js      session/event → 活动状态 → 心跳调度
-lib/client.js       WakaTime HTTP 客户端（认证、批量、重试、代理降级）
-lib/heartbeat.js    heartbeat 构造（纯函数）
-lib/cfg.js          ~/.wakatime.cfg 与插件配置合并
-lib/queue.js        持久化离线队列（原子写）
-test/               node:test 单测
-docs/               design.md · wakatime-api.md · harness-api.md
+index.js            Host entry: Config + apply(ctx, config)
+lib/tracker.js      session/event → activity state → heartbeat scheduling
+lib/usage.js        per-day aggregation behind the Usage page
+lib/client.js       WakaTime HTTP client (auth, batching, retry, proxy fallback)
+lib/heartbeat.js    heartbeat builder (pure)
+lib/cfg.js          ~/.wakatime.cfg + plugin config merge
+lib/queue.js        persistent offline queue (atomic writes)
+test/               node:test suites
 ```
 
-实现契约见 [docs/design.md](docs/design.md)，WakaTime 字段与 DSH 插件机制的实测记录见 [docs/wakatime-api.md](docs/wakatime-api.md) 与 [docs/harness-api.md](docs/harness-api.md)。
+## Docs
 
-## 许可证
+- [docs/design.md](docs/design.md) — the implementation contract: settings, events, wire format, v0.2 page.
+- [docs/wakatime-api.md](docs/wakatime-api.md) — WakaTime API v1 fields, categories, auth, and retry behavior as measured.
+- [docs/harness-api.md](docs/harness-api.md) — DSH plugin API: schema, events, web server routes, slots.
+
+## License
 
 [MIT](LICENSE) © 2026 Dynesshely

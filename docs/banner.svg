@@ -49,7 +49,7 @@
   <g font-family="'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif">
     <text x="320" y="170" font-size="60" font-weight="700" fill="#ffffff" letter-spacing="-1.2">dsh-plugin-wakatime</text>
     <text x="322" y="210" font-size="25" fill="#a9bdd6">WakaTime heartbeats for DeepSeek Harness</text>
-    <text x="322" y="248" font-size="21" fill="#7f97b2">把你在 DSH 里和 AI 一起写代码的时间，计入 WakaTime 的 AI Coding</text>
+    <text x="322" y="248" font-size="21" fill="#7f97b2">Track the time you code with AI — counted in WakaTime as AI Coding</text>
 
     <!-- capability pills -->
     <g font-size="16" font-weight="600">
