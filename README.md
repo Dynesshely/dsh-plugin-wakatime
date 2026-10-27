@@ -6,12 +6,12 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-3f8cff.svg" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/Node-%E2%89%A520-339933.svg" alt="Node >= 20">
   <a href="https://wakatime.com/developers"><img src="https://img.shields.io/badge/WakaTime-API%20v1-3f8cff.svg" alt="WakaTime API v1"></a>
-  <img src="https://img.shields.io/badge/DeepSeek-Harness-1f2b3d.svg" alt="DeepSeek Harness">
+  <a href="https://github.com/deepseek-ai/deepseek-harness"><img src="https://img.shields.io/badge/DeepSeek-Harness-1f2b3d.svg" alt="DeepSeek Harness"></a>
 </p>
 
 # dsh-plugin-wakatime
 
-A [DeepSeek Harness](https://github.com/Dynesshely) (DSH) Host plugin that reports the time you spend **coding with AI** inside DSH to WakaTime, as `category: "ai coding"` heartbeats, so it shows up in your **AI Coding** stats next to everything else you track.
+A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) Host plugin that reports the time you spend **coding with AI** inside DSH to WakaTime, as `category: "ai coding"` heartbeats, so it shows up in your **AI Coding** stats next to everything else you track.
 
 It does not fake per-file keystroke heartbeats. It answers one question — was this stretch of time spent working on this project with an AI pair? — and it does so in the background, without blocking the host. Since v0.2 it also ships a **Usage** page inside DSH.
 
