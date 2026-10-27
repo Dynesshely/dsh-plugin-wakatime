@@ -1,0 +1,11 @@
+# 核心库实现说明（core-lib 交付）
+
+1. 导出签名：
+   - `lib/cfg.js`：`parseIni(text) → {sections}`、`readWakaTimeConfig({cfgPath,homeDir,env}) → {found,path,sections?,settings?}`（永不抛错）、`resolveSettings({file,config,env}) → 运行配置`；辅助纯函数 `computeStateDir`、`ensureStateDir`、`defaultUserAgent`、`normalizeString`、`clampInt`、`resolveConfigPath`。
+   - `lib/heartbeat.js`：`buildHeartbeat(input) → WakaTime heartbeat JSON`（字段名 API v1，time 秒且 ≤3 位小数，0/undefined/null 一律省略）。
+   - `lib/client.js`：`createClient({apiKey,apiUrl,proxy,hostname,userAgent,fetchImpl,logger,timeoutMs}) → {sendBatch,send,disabledReason,maxBatchSize}`；另导出 `parseRetryAfter`、`MAX_BATCH_SIZE=25`。所有结果均为返回值（`ok/status/sent/retryAfterMs/retryable/permanent/error`），不抛异常。
+   - `lib/queue.js`：`createQueue({file,maxEntries=500,logger}) → {load,push,drain,commit,drop,size,file,lastError}`；原子写（tmp+rename）、超限淘汰最旧、损坏文件改名 `*.corrupt-*` 后从空队列开始。
+2. 代理实测：`node -e "import('undici').then(m=>console.log(typeof m.ProxyAgent))"` → `ERR_MODULE_NOT_FOUND`（Node v23.3.0；`~/.dsh/profiles` 下也没有 undici）。因此实现为「有 proxy 时动态 `import('undici')` + try/catch」：可用则 `new ProxyAgent(proxy)` 走 `fetch` 的 `dispatcher`，不可用/初始化失败则记一条 warning（含脱敏代理地址）后直连，不影响上报。
+3. 与 design.md 的偏差/补充：`resolveSettings` 额外返回 `cfgPath`（tracker 日志要用）；`sendBatch` 超过 25 条也会自动切批（`send` 与之一致，不丢数据）；403 视为永久失败但不置 `disabledReason`（只有 401 才置 `unauthorized`）；`buildHeartbeat` 对非有限 `time`/空 `entity` 抛 `TypeError`（调用方编程错误，tracker 已先判 cwd）；`queue.push` 返回队列长度，写盘失败不抛而是记 `lastError` 并保留内存数据；`resolveSettings` 只算 `stateDir` 不建目录，需由入口调用 `ensureStateDir(settings.stateDir)`（或 queue 首次写盘自动 mkdir）。
+4. 测试：本库 4 个测试文件 `node --test test/cfg.test.js test/heartbeat.test.js test/client.test.js test/queue.test.js` → 54 passed / 0 failed（cfg 14、heartbeat 7、client 16、queue 17）；仓库全量 `node --test`（含 tracker.test.js）→ 64 passed / 0 failed。注意 Node v23.3.0 下 `node --test test` 会把目录当成模块而报 `MODULE_NOT_FOUND`，package.json 的 test script 应改为 `node --test "test/*.test.js"`（无参 `node --test` 亦可，自动发现）。测试不访问外网：client 用 `127.0.0.1:0` 的 `node:http` 假服务器验证 Basic 认证、UA、单发/批量、25 上限、201/202/400/401/429/500、Retry-After（秒与 HTTP-date）、超时、代理降级。
+5. 未决：`docs/wakatime-api.md` 在本轮交付时仍未出现，UA 暂定 `dsh-plugin-wakatime/0.1.0 (<OS>-<release>-<arch>) node/<ver>`（不冒充 wakatime-cli）；若调研要求 `wakatime/<cli>` 前缀，只需改 `lib/cfg.js` 的 `defaultUserAgent` 单点。

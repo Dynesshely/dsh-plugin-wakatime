@@ -1,0 +1,7 @@
+# 本仓库没有构建步骤、也没有运行时依赖，下面只挡可能意外落进来的东西。
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+.scratch/
+coverage/

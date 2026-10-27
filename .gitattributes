@@ -1,0 +1,14 @@
+# 仓库与 checkout 一律 LF：这套文件是按字节被 DSH 直接读取的（icon.svg、locale/*.json 原样
+# 供给插件管理页），跨平台 diff 也不该被换行符污染，所以不管 core.autocrlf 怎么设都用 LF。
+* text=auto eol=lf
+
+# 二进制资源绝不参与文本规范化。
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

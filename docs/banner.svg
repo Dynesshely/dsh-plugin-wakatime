@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-labelledby="banner-title banner-desc">
+  <title id="banner-title">dsh-plugin-wakatime</title>
+  <desc id="banner-desc">A DeepSeek Harness plugin that reports AI coding time to WakaTime: a stopwatch whose dial holds a terminal prompt, with a heartbeat trace.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a1120" />
+      <stop offset="0.55" stop-color="#0d1729" />
+      <stop offset="1" stop-color="#101f35" />
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3f8cff" stop-opacity="0.30" />
+      <stop offset="0.6" stop-color="#3f8cff" stop-opacity="0.08" />
+      <stop offset="1" stop-color="#3f8cff" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="arc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6cb0ff" />
+      <stop offset="1" stop-color="#2f74e0" />
+    </linearGradient>
+    <linearGradient id="pulse" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3f8cff" stop-opacity="0" />
+      <stop offset="0.25" stop-color="#3f8cff" stop-opacity="0.55" />
+      <stop offset="0.75" stop-color="#3f8cff" stop-opacity="0.45" />
+      <stop offset="1" stop-color="#3f8cff" stop-opacity="0" />
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#ffffff" stroke-opacity="0.035" stroke-width="1" />
+    </pattern>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="1280" height="400" fill="url(#bg)" />
+  <rect width="1280" height="400" fill="url(#grid)" />
+  <circle cx="178" cy="206" r="250" fill="url(#glow)" />
+  <rect x="0.75" y="0.75" width="1278.5" height="398.5" rx="26" fill="none" stroke="#22314a" stroke-opacity="0.9" />
+
+  <!-- stopwatch + terminal prompt, same glyph as icon.svg -->
+  <g fill="none" stroke="#e8f1ff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M148 92h44" />
+    <path d="M170 92v20" />
+    <circle cx="170" cy="206" r="78" />
+    <path d="M143 178l26 26-26 26" stroke-width="9" />
+    <path d="M186 230h34" stroke-width="9" />
+  </g>
+  <!-- elapsed quarter of the dial -->
+  <path d="M170 128a78 78 0 0 1 67.5 39" fill="none" stroke="url(#arc)" stroke-width="9" stroke-linecap="round" />
+
+  <!-- wordmark -->
+  <g font-family="'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif">
+    <text x="320" y="170" font-size="60" font-weight="700" fill="#ffffff" letter-spacing="-1.2">dsh-plugin-wakatime</text>
+    <text x="322" y="210" font-size="25" fill="#a9bdd6">WakaTime heartbeats for DeepSeek Harness</text>
+    <text x="322" y="248" font-size="21" fill="#7f97b2">把你在 DSH 里和 AI 一起写代码的时间，计入 WakaTime 的 AI Coding</text>
+
+    <!-- capability pills -->
+    <g font-size="16" font-weight="600">
+      <rect x="322" y="272" width="188" height="36" rx="18" fill="#132238" stroke="#243a58" />
+      <text x="416" y="296" text-anchor="middle" fill="#9fc0e8">category: ai coding</text>
+      <rect x="522" y="272" width="132" height="36" rx="18" fill="#132238" stroke="#243a58" />
+      <text x="588" y="296" text-anchor="middle" fill="#9fc0e8">Basic auth</text>
+      <rect x="666" y="272" width="148" height="36" rx="18" fill="#132238" stroke="#243a58" />
+      <text x="740" y="296" text-anchor="middle" fill="#9fc0e8">offline queue</text>
+      <rect x="826" y="272" width="122" height="36" rx="18" fill="#132238" stroke="#243a58" />
+      <text x="887" y="296" text-anchor="middle" fill="#9fc0e8">MIT</text>
+    </g>
+
+    <text x="1200" y="96" text-anchor="end" font-size="16" fill="#5a7290" letter-spacing="0.6">DEEPSEEK HARNESS · HOST PLUGIN</text>
+  </g>
+
+  <!-- heartbeat trace -->
+  <path d="M320 352H838l16-26 14 58 14-38 10 6h-2 292" fill="none" stroke="url(#pulse)" stroke-width="3" stroke-linejoin="round" opacity="0.85" />
+  <circle cx="1192" cy="352" r="3.5" fill="#3f8cff" fill-opacity="0.8" />
+</svg>

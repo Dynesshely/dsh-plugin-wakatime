@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-labelledby="wakatime-ai-coding-title" style="color:#3f8cff">
+  <title id="wakatime-ai-coding-title">WakaTime AI Coding</title>
+  <desc>A stopwatch whose dial holds a terminal prompt: time spent coding with AI.</desc>
+  <!-- Everything is stroke-based with round caps so the glyph stays legible at 16px and follows
+       the surrounding text color when the host themes it; the inline color is only a fallback. -->
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- stopwatch crown -->
+    <path d="M12.75 4.5h6.5" />
+    <path d="M16 4.5v3.7" />
+    <!-- dial -->
+    <circle cx="16" cy="18.5" r="10" />
+    <!-- elapsed arc, a quarter turn of the same ring -->
+    <path d="M16 8.5a10 10 0 0 1 8.66 5" stroke-opacity=".45" stroke-width="2.6" />
+    <!-- prompt chevron -->
+    <path d="M12.6 14.9l3.4 3.4-3.4 3.4" />
+    <!-- cursor -->
+    <path d="M19.3 21.7h4.1" />
+  </g>
+</svg>

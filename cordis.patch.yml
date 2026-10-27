@@ -1,0 +1,8 @@
+# Profile bundle layer for the WakaTime AI-coding tracker.
+#
+# The Host half (index.js) listens to Session activity and sends WakaTime
+# heartbeats with category "ai coding". No Client half is involved.
+- insert:
+    - id: wakatime
+      name: dsh-plugin-wakatime
+      config: {}
