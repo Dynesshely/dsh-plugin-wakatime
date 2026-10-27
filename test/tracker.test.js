@@ -82,6 +82,14 @@ function harness(overrides = {}) {
   }
 
   const state = createState({ now: () => clock })
+  /** 本地账本的替身：记录每次 credit 的入参。 */
+  const ledger = []
+  const usage = {
+    credit(input) {
+      ledger.push(input)
+      return 0
+    },
+  }
 
   const settings = {
     apiKey: 'test-key',
@@ -110,6 +118,7 @@ function harness(overrides = {}) {
     queue,
     logger,
     state,
+    usage,
     now: () => clock,
   })
 
@@ -125,6 +134,7 @@ function harness(overrides = {}) {
     heartbeats,
     queued,
     logs,
+    ledger,
     draincalls,
     advance(ms) {
       clock += ms
@@ -334,13 +344,20 @@ test('tick 会排空离线队列并在成功后提交', async () => {
   h.tracker.stop()
 })
 
-test('未配置 apiKey 时保持 inert', () => {
+test('未配置 apiKey：仍本地记账，但不发网络请求', async () => {
   const h = harness({ settings: { apiKey: undefined } })
   const stop = h.tracker.start()
   assert.equal(typeof stop, 'function')
-  // 不注册监听：插件保持 inert，不产生任何网络行为。
-  assert.equal(h.listeners.has('session/event'), false)
+  // 监听仍然注册：本地面板要有数据，只是没有上行目的地。
+  assert.equal(h.listeners.has('session/event'), true)
   assert.equal(h.tracker.status().apiKeyConfigured, false)
+
+  h.emit(session('s1', 'D:\\Projects\\demo'), 'turn/start', { turn: 1 })
+  await settle()
+  assert.equal(h.heartbeats.length, 0, '不应发起网络请求')
+  assert.equal(h.ledger.length, 1, '本地账本应记录一次')
+  assert.equal(h.ledger[0].project, 'demo')
+  assert.equal(h.ledger[0].sessionId, 's1')
   assert.ok(h.logs.some((line) => line.includes('api_key')))
   h.tracker.stop()
 })

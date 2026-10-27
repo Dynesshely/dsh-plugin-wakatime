@@ -11,12 +11,15 @@
 import { join } from 'node:path'
 import Schema from '@deepseek-ai/schemastery'
 
-import { ensureStateDir, readWakaTimeConfig, resolveSettings } from './lib/cfg.js'
+import { ensureStateDir, PLUGIN_VERSION, readWakaTimeConfig, resolveSettings } from './lib/cfg.js'
 import { createClient } from './lib/client.js'
 import { createLogger } from './lib/logger.js'
 import { createQueue } from './lib/queue.js'
+import { createReport } from './lib/report.js'
 import { createState } from './lib/state.js'
 import { createTracker } from './lib/tracker.js'
+import { createUsageStore } from './lib/usage.js'
+import { createTodayProbe } from './lib/wakatime-today.js'
 
 /** 插件名，与 cordis.patch.yml 的行 id 保持一致。 */
 export const name = 'wakatime'
@@ -120,17 +123,83 @@ async function bootstrap(ctx, config, isDisposed) {
     })
     const queue = createQueue({ file: join(stateDir, 'heartbeat-queue.json'), logger })
     const state = createState()
-    const tracker = createTracker({ ctx, settings, client, queue, logger, state })
+    const usage = createUsageStore({ file: join(stateDir, 'usage.json'), idleTimeoutMinutes: settings.idleTimeoutMinutes })
+    const tracker = createTracker({ ctx, settings, client, queue, logger, state, usage })
+    const probe = createTodayProbe({
+      apiKey: settings.apiKey,
+      apiUrl: settings.apiUrl,
+      userAgent: settings.userAgent,
+      idleTimeoutMinutes: settings.idleTimeoutMinutes,
+      logger,
+    })
+    const report = createReport({ usage, probe, tracker, queue, settings, version: PLUGIN_VERSION })
 
-    // 队列加载失败不影响实时上报，createQueue 内部已做过损坏恢复。
+    // 队列 / 账本加载失败都不影响实时上报：两者内部都已做损坏恢复。
     await queue.load().catch((error) => logger.warn(`离线队列加载失败：${String(error)}`))
+    await usage.load().catch((error) => logger.warn(`本地统计加载失败：${String(error)}`))
     if (isDisposed()) return () => {}
 
     const stop = tracker.start()
+
+    // 页面数据路由：只读、同源、每次现算（Cache-Control: no-store）。
+    //
+    // 注意：`ctx.webServer` 直接取会抛 `cannot get property "webServer" without inject`，
+    // 未声明 inject 的插件只能用 `ctx.get('webServer')` 做可选访问（见 docs/harness-api.md）。
+    let disposeRoute = () => {}
+    try {
+      const webServer = typeof ctx.get === 'function' ? ctx.get('webServer') : undefined
+      if (webServer && typeof webServer.register === 'function') {
+        disposeRoute = webServer.register({
+          kind: 'exact',
+          path: '/wakatime/usage.json',
+          handler: async (request, response) => {
+            if (request.method !== 'GET' && request.method !== 'HEAD') {
+              response.statusCode = 405
+              response.setHeader('Allow', 'GET, HEAD')
+              response.end()
+              return
+            }
+            try {
+              const payload = await report.snapshot()
+              const body = JSON.stringify(payload)
+              response.statusCode = 200
+              response.setHeader('Content-Type', 'application/json; charset=utf-8')
+              response.setHeader('Cache-Control', 'no-store')
+              response.setHeader('Content-Length', Buffer.byteLength(body))
+              response.end(request.method === 'HEAD' ? undefined : body)
+            } catch (error) {
+              const body = JSON.stringify({ error: String(error) })
+              response.statusCode = 500
+              response.setHeader('Content-Type', 'application/json; charset=utf-8')
+              response.end(body)
+            }
+          },
+        })
+        logger.info('页面数据路由已注册：GET /wakatime/usage.json')
+      } else {
+        logger.warn('未挂载 webServer 服务，跳过 /wakatime/usage.json 路由（页面会显示为不可用）。')
+      }
+    } catch (error) {
+      logger.warn(`注册 /wakatime/usage.json 失败：${String(error)}`)
+    }
+
     logger.info(
       `插件已装配：cfg=${file.path} stateDir=${stateDir} apiKey=${settings.apiKey ? '已配置' : '缺失'} queue=${queue.size()} debug=${settings.debug}`,
     )
-    return stop
+
+    return () => {
+      try {
+        stop()
+      } catch {
+        // 继续清理其余资源。
+      }
+      try {
+        disposeRoute()
+      } catch {
+        // 路由可能已被宿主回收。
+      }
+      void usage.dispose().catch(() => {})
+    }
   } catch (error) {
     try {
       logger?.error(`插件装配失败：${error && error.stack ? error.stack : String(error)}`)
@@ -147,3 +216,6 @@ export { parseIni, readWakaTimeConfig, resolveSettings } from './lib/cfg.js'
 export { createTracker } from './lib/tracker.js'
 export { createClient } from './lib/client.js'
 export { createQueue } from './lib/queue.js'
+export { createUsageStore, dayKey } from './lib/usage.js'
+export { createReport } from './lib/report.js'
+export { createTodayProbe } from './lib/wakatime-today.js'

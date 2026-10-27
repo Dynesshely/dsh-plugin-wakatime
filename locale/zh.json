@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "WakaTime AI 编程时长",
-    "description": "把在 DSH 中使用 AI 编程的时长以 AI coding 类别上报到 WakaTime。"
+    "description": "把在 DSH 中使用 AI 编程的时长以 AI coding 类别上报到 WakaTime，并提供一个「使用时间」页面查看本地与 WakaTime 统计。"
   }
 }

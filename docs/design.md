@@ -175,3 +175,73 @@ export function apply(ctx, config) { ... }
 - 不执行 `git commit` / `git push`（用户未要求）。
 - 不修改 profile 的 package.json / cordis.patch.yml（安装由 Lead 用 plugin_manager 完成）。
 - 文档与注释中文，代码标识符英文。
+
+## v0.2：Web 页面「使用时间」
+
+目标：在左侧导航（`sidebar.panellist`）里与「插件 / 自动化任务 / 上下文洞察」并列注册一个「使用时间 / Usage」入口，点开在中间面板显示本插件的本地统计与 WakaTime 侧信息。
+
+### Host 侧：本地统计 `lib/usage.js`
+
+按天聚合，落盘 `stateDir/usage.json`（原子写，保留最近 30 天）：
+
+```js
+export function createUsageStore({ file, now = Date.now, idleTimeoutMinutes = 15 }) {
+  return {
+    async load(),
+    /** 记录一次「活动区间」：距上次记录 <= idleTimeout 的间隔计入时长。 */
+    credit({ at, project, inputTokens = 0, outputTokens = 0, promptChars = 0, sessionId }),
+    /** 页面用的快照（纯数据，可直接 JSON 化）。 */
+    snapshot(),
+  }
+}
+```
+
+`credit` 语义：`seconds = clamp((at - lastAt) / 1000, 0, idleTimeoutMinutes * 60)`；首条无 lastAt 时计 0。同一项目累加秒数；token / 字符 / 会话计数进当天桶。跨天按本地日历切桶。
+
+### Host 侧：HTTP 路由
+
+`ctx.webServer.register({ kind: 'exact', path: '/wakatime/usage.json', handler })`（未声明 `inject` 时用 `ctx.get('webServer')` 取服务；取不到就跳过注册并记 warning）。响应 `application/json; charset=utf-8`，`Cache-Control: no-store`。JSON 契约（Client 只依赖它）：
+
+```jsonc
+{
+  "generatedAt": 1793000000000,
+  "plugin": { "version": "0.2.0", "enabled": true, "category": "ai coding",
+              "minIntervalSeconds": 120, "idleTimeoutMinutes": 15 },
+  "local": {
+    "today": { "date": "2026-10-27", "seconds": 3600, "heartbeats": 18,
+               "inputTokens": 120000, "outputTokens": 34000, "promptChars": 4200, "sessions": 3 },
+    "weekSeconds": 12000,
+    "totalSeconds": 48000,
+    "days": [{ "date": "2026-10-21", "seconds": 3600, "heartbeats": 12 } /* 7 条，含今天 */],
+    "projects": [{ "name": "dsh-plugin-wakatime", "seconds": 9000 }],
+    "sessionsTracked": 4,
+    "lastHeartbeatAt": 1793000000000
+  },
+  "wakatime": {
+    "apiKeyConfigured": true, "hostname": "DESKTOP", "queueSize": 0,
+    "lastSentAt": 1793000000000, "lastError": null, "disabledReason": null,
+    "today": { "categorySeconds": 3120, "heartbeats": 15, "fetchedAt": 1793000000000, "error": null }
+  }
+}
+```
+
+`wakatime.today` 由 Host 用 cfg 里的 api_key 调 `GET {apiUrl}/users/current/heartbeats?date=YYYY-MM-DD` 计算（只统计 `category === "AI Coding"|"ai coding"`，相邻心跳间隔按 15 分钟封顶求和），60 秒缓存；失败只填 `error`，不影响其余字段。
+
+### Client 侧：`client.js`
+
+`package.json` 增加 `dsh.client`（`platform: 'web'`, `immediately: true`）与 `./client` export；`client.js` 用 `window.__ModuleLoader__.load({ id, factory(require) { const React = require('react'); ... } })`，在 `apply(ctx)` 里：
+
+```js
+ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'wakatime-usage', locale }, UsagePage))
+ctx.slots.inject('sidebar.panellist', () => ctx.slots.register(
+  { name: 'sidebar.panellist', id: 'wakatime-usage', order: 21, label: () => t('panel.title'), locale },
+  ({ size, active }) => Icon({ size, active }),
+))
+```
+
+- 图标 props：`{ size: number, active: boolean }`；面板组件可按需使用标准 hooks（`useResource` 等），本页只用 `fetch('/wakatime/usage.json')`。
+- 视觉：跟随宿主主题（用主题 CSS 变量，不写死深色）；标题、卡片、数字用局部样式，全部内联为 React 元素，避免注入全局 CSS。
+- 内容：今日时长（大字）＋ 本周 / 累计；今日 token（输入/输出）与键入字符；最近 7 天柱状图（内联 SVG）；项目 Top 5；WakaTime 区块（key 是否配置、机器名、远程今日 AI Coding 时长、待发队列、最近发送、最近错误）；右上角刷新按钮（重新 fetch，`Cache-Control: no-store`）；加载中 / 失败态（失败显示错误文本与重试）。
+- 文案走 Client locale（`zh` / `en`），页面标题中文「使用时间」、英文「Usage」。
+- 时长格式：`H小时M分` / `Hh Mm`，秒级数据不足 1 分钟显示 `<1 min`。
+

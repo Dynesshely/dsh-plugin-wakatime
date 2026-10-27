@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "WakaTime AI Coding",
-    "description": "Reports the time you spend coding with AI in DeepSeek Harness to WakaTime as AI coding activity."
+    "description": "Reports the time you spend coding with AI in DeepSeek Harness to WakaTime as AI coding activity, with a Usage page showing local and WakaTime stats."
   }
 }

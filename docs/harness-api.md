@@ -212,6 +212,26 @@ design.md 里把「注册只读工具 `wakatime_status`」列为可选，最终*
 | 看 `node_modules` 判断是否安装 | 卸载后残留软链仍在 | 看 profile `package.json` 的 `dependencies` / `bundles` |
 | 子代理重复计时 | 同一段时间被算两遍 | 默认忽略 `header.parentSession` / `origin === 'subagent'` |
 
+## 13. v0.2 追加实测（Web 页面 + 数据路由）
+
+1. **未声明 `inject` 的插件只能 `ctx.get('webServer')` 取服务**。直接读 `ctx.webServer` 会抛
+   `cannot get property "webServer" without inject`（实测，Host 日志原文），插件因此在
+   `try/catch` 里注册路由并记一条 warning——这属于「静默失败」，必须查日志才能发现。
+2. **页面路由可用任意路径**：`webServer.register({ kind: 'exact', path: '/wakatime/usage.json', handler })`
+   实测可注册并被同源访问（`GET http://127.0.0.1:<port>/wakatime/usage.json` → 200
+   `application/json; charset=utf-8`、`Cache-Control: no-store`）。`handler` 收的是 Node 的
+   `IncomingMessage` / `ServerResponse`，不是 Fetch 的 Request/Response。
+3. **新增 `dsh.client` 后必须重启 DSH**：`ClientModuleRegistry` 在 Host 启动时扫描 loader entries，
+   把「该包没有 `dsh.client`」缓存进每个包的 `pkgMeta` 且没有失效逻辑；本次在进程运行中给
+   package.json 加上 `dsh.client` 后，重装、刷新页面都无法让 Client 半边进模块图，`Slots`
+   occupant 一直不出现。重启后才会加载 `client.js`。
+4. **Client 侧注册项里的 `locale` 参数是命名空间字符串**，不是 `ctx.locale` 服务对象
+   （依据 `dsh-context/lib/client.js` 的真实实现）。`main` 面板注册用 `key`，侧边栏入口用
+   `id`，两者取同一个值，侧边栏点击才会切到对应面板。
+5. **多实例并存会放大写入**：同一条目被多次 install/重装时，进程里可能同时存在多个插件实例，
+   它们共享同一个 `stateDir`（日志/队列/usage 文件都是原子写，不会损坏，但心跳会双发）。
+   开发期用「验证副本」安装来试验新代码时，务必在验证后 `remove_bundle` 干净退出。
+
 ## 12. 与 design.md 的偏差（需 Lead 决定是否回写）
 
 1. design.md 的入口示例写的是「`Config` = zod schema，见 docs/harness-api.md」——**实测**必须 schemastery；本仓库 index.js 已经是 schemastery，本轮已把 README 的说法对齐，README 里「运行时零第三方依赖」也随之删除。

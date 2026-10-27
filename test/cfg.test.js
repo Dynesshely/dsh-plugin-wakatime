@@ -230,7 +230,7 @@ test('resolveSettings：无 cfg 文件时的默认值', () => {
   assert.equal(settings.projectFromCwd, true);
   assert.equal(settings.includeSubagentSessions, false);
   assert.equal(settings.language, undefined);
-  assert.match(settings.userAgent, /^dsh-plugin-wakatime\/0\.1\.0 \(.+\) node\/\d+\.\d+\.\d+/);
+  assert.match(settings.userAgent, /^dsh-plugin-wakatime\/\d+\.\d+\.\d+ \(.+\) node\/\d+\.\d+\.\d+/);
   assert.ok(settings.stateDir.length > 0);
 });
 
@@ -294,7 +294,7 @@ test('ensureStateDir：创建嵌套目录；目标不可创建时退化到 fallb
 
 test('defaultUserAgent / normalizeString / clampInt 的边界行为', () => {
   const ua = defaultUserAgent({ platform: 'win32', release: '10.0.26100', arch: 'x64', nodeVersion: '23.3.0' });
-  assert.equal(ua, 'dsh-plugin-wakatime/0.1.0 (Windows-10.0.26100-x64) node/23.3.0');
+  assert.equal(ua, 'dsh-plugin-wakatime/0.2.0 (Windows-10.0.26100-x64) node/23.3.0');
 
   assert.equal(normalizeString('  x '), 'x');
   assert.equal(normalizeString('   '), undefined);
@@ -306,3 +306,4 @@ test('defaultUserAgent / normalizeString / clampInt 的边界行为', () => {
   assert.equal(clampInt('abc', 120, 10, 900), 120);
   assert.equal(clampInt(120.6, 120, 10, 900), 121);
 });
+

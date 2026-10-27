@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-wakatime",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Track the time you spend coding with AI inside DeepSeek Harness and report it to WakaTime as AI coding activity.",
   "type": "module",
   "license": "MIT",
@@ -12,12 +12,14 @@
   },
   "exports": {
     ".": "./index.js",
+    "./client": "./client.js",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
   "files": [
     "index.js",
+    "client.js",
     "lib",
     "cordis.patch.yml",
     "locale",
@@ -29,6 +31,10 @@
     "manifestVersion": 1,
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
     }
   },
   "engines": {
